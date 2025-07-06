@@ -1,0 +1,5 @@
+const x = 6;
+var y;
+begin
+  x := y * 2;
+end.
