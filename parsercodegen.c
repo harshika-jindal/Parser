@@ -88,27 +88,27 @@ const char symbols[] = {
 };
 
 const char* error_messages[] = {
-    "program must end with period",
-    "const, var, and read keywords must be followed by identifier",
-    "symbol name has already been declared",
-    "constants must be assigned with =",
-    "constants must be assigned an integer value",
-    "constant and variable declarations must be followed by a semicolon",
-    "undeclared identifier",
-    "only variable values may be altered",
-    "assignment statements must use :=",
-    "begin must be followed by end",
-    "if must be followed by then",
-    "when must be followed by do",
-    "condition must contain comparison operator",
-    "right parenthesis must follow left parenthesis",
-    "arithmetic equations must contain operands, parentheses, numbers, or symbols",
-    "then must be followed by fi",
-    "unmatched right parenthesis",
-    "constants must be integers (no decimal points)",
-    "invalid symbol",
-    "identifier too long",
-    "number too long"
+    "program must end with period", //0
+    "const, var, and read keywords must be followed by identifier", //1
+    "symbol name has already been declared", //2
+    "constants must be assigned with =",//3
+    "constants must be assigned an integer value",//4
+    "constant and variable declarations must be followed by a semicolon",//5
+    "undeclared identifier",//6
+    "only variable values may be altered",//7
+    "assignment statements must use :=",//8
+    "begin must be followed by end",//9
+    "if must be followed by then",//10
+    "when must be followed by do",//11
+    "condition must contain comparison operator",//12
+    "right parenthesis must follow left parenthesis",//13
+    "arithmetic equations must contain operands, parentheses, numbers, or symbols",//14
+    "then must be followed by fi",//15
+    "unmatched right parenthesis",//16
+    "constants must be integers (no decimal points)",//17
+    "invalid symbol",//18
+    "identifier too long",//19
+    "number too long"//2
 };
 
 // Function prototypes
@@ -131,10 +131,8 @@ void factor();
 void print_errors();
 
 // Helper functions
-void add_error(int line, int col, const char* msg) {
+void add_error( const char* msg) {
     if (errorCount < 100) {
-        errors[errorCount].line = line;
-        errors[errorCount].column = col;
         strncpy(errors[errorCount].message, msg, 99);
         errorCount++;
         hasError = 1;
@@ -206,7 +204,7 @@ void scanTokens(FILE *input) {
                 colNum += 2;
                 while (!(buffer[j] == '*' && buffer[j + 1] == '/')) {
                     if (buffer[j] == '\0') {
-                        add_error(lineNum, colNum, "Unterminated comment");
+                        add_error("Unterminated comment");
                         break;
                     }
                     j++;
@@ -231,7 +229,7 @@ void scanTokens(FILE *input) {
 
                 if (strlen(id) > MAX_ID_LEN) {
                     printf("%s\t\tError: Identifier too long\n", id);
-                    add_error(lineNum, startCol, "Identifier too long");
+                    add_error("Identifier too long");
                 } else {
                     int token = isReservedWord(id);
                     if (token) {
@@ -255,7 +253,7 @@ void scanTokens(FILE *input) {
                 }
                 // Check for decimal point (invalid in PL/0)
                 if (buffer[i] == '.') {
-                    add_error(lineNum, colNum, "Decimal numbers not allowed");
+                    add_error("Decimal numbers not allowed");
                     while (isNumber(buffer[i]) || buffer[i] == '.') {
                         i++;
                         colNum++;
@@ -265,7 +263,7 @@ void scanTokens(FILE *input) {
                 num[j] = '\0';
                 if (strlen(num) > MAX_NUM_LEN) {
                     printf("%s\t\tError: Number too long\n", num);
-                    add_error(lineNum, startCol, "Number too long");
+                    add_error("Number too long");
                 } else {
                     printf("%s\t\t%d\n", num, numbersym);
                 }
@@ -295,11 +293,11 @@ void scanTokens(FILE *input) {
                 case ';': printf(";\t\t%d\n", semicolonsym); break;
                 case ':':
                     if (buffer[i+1] == '=') { printf(":=\t\t%d\n", becomessym); i++; colNum++; }
-                    else { printf(":\t\tError: invalid symbol\n"); add_error(lineNum, colNum, "Invalid symbol ':'"); }
+                    else { printf(":\t\tError: invalid symbol\n"); add_error("Invalid symbol ':'"); }
                     break;
                 default:
                     printf("\t\tError: invalid symbol \"%c\"\n", c);
-                    add_error(lineNum, colNum, "Invalid symbol");
+                    add_error("Invalid symbol");
                     break;
             }
             i++;
@@ -436,18 +434,12 @@ void get_next_token() {
 
 void error(int error_num) {
     if (error_num >= 0 && error_num < sizeof(error_messages)/sizeof(error_messages[0])) {
-        if (currentToken->line != -1) {
-            printf("Error (Line %d, Column %d): %s\n", 
-                   currentToken->line, currentToken->column, error_messages[error_num]);
-        } else {
-            printf("Error: %s\n", error_messages[error_num]);
-        }
+        printf("Error: %s\n", error_messages[error_num]);
     } else {
         printf("Unknown error\n");
     }
     exit(1);
 }
-
 void emit(int op, int L, int M) {
     if (cx >= CODE_SIZE) {
         error("Program too long");
