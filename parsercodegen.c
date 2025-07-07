@@ -251,15 +251,7 @@ void scanTokens(FILE *input) {
                 id[j] = '\0';
 
                 if (strlen(id) > MAX_ID_LEN) {
-                    printf("%s\t\tError: Identifier too long\n", id);
                     add_error("Identifier too long");
-                } else {
-                    int token = isReservedWord(id);
-                    if (token) {
-                        printf("%s\t\t%d\n", id, token);
-                    } else {
-                        printf("%s\t\t%d\n", id, identsym);
-                    }
                 }
                 continue;
             }
@@ -285,41 +277,35 @@ void scanTokens(FILE *input) {
                 }
                 num[j] = '\0';
                 if (strlen(num) > MAX_NUM_LEN) {
-                    printf("%s\t\tError: Number too long\n", num);
                     add_error("Number too long");
-                } else {
-                    printf("%s\t\t%d\n", num, numbersym);
                 }
                 continue;
             }
 
             // Process special symbols
             switch (c) {
-                case '+': printf("+\t\t%d\n", plussym); break;
-                case '-': printf("-\t\t%d\n", minussym); break;
-                case '*': printf("*\t\t%d\n", multsym); break;
-                case '/': printf("/\t\t%d\n", slashsym); break;
-                case '(': printf("(\t\t%d\n", lparentsym); break;
-                case ')': printf(")\t\t%d\n", rparentsym); break;
-                case '=': printf("=\t\t%d\n", eqlsym); break;
-                case ',': printf(",\t\t%d\n", commasym); break;
-                case '.': printf(".\t\t%d\n", periodsym); break;
+                case '+': break;
+                case '-': break;
+                case '*': break;
+                case '/': break;
+                case '(': break;
+                case ')': break;
+                case '=': break;
+                case ',': break;
+                case '.': break;
                 case '<':
-                    if (buffer[i+1] == '=') { printf("<=\t\t%d\n", leqsym); i++; colNum++; }
-                    else if (buffer[i+1] == '>') { printf("<>\t\t%d\n", neqsym); i++; colNum++; }
-                    else { printf("<\t\t%d\n", lessym); }
+                    if (buffer[i+1] == '=') { i++; colNum++; }
+                    else if (buffer[i+1] == '>') { i++; colNum++; }
                     break;
                 case '>':
-                    if (buffer[i+1] == '=') { printf(">=\t\t%d\n", geqsym); i++; colNum++; }
-                    else { printf(">\t\t%d\n", gtrsym); }
+                    if (buffer[i+1] == '=') { i++; colNum++; }
                     break;
-                case ';': printf(";\t\t%d\n", semicolonsym); break;
+                case ';': break;
                 case ':':
-                    if (buffer[i+1] == '=') { printf(":=\t\t%d\n", becomessym); i++; colNum++; }
-                    else { printf(":\t\tError: invalid symbol\n"); add_error("Invalid symbol ':'"); }
+                    if (buffer[i+1] == '=') { i++; colNum++; }
+                    else { add_error("Invalid symbol ':'"); }
                     break;
                 default:
-                    printf("\t\tError: invalid symbol \"%c\"\n", c);
                     add_error("Invalid symbol");
                     break;
             }
@@ -432,17 +418,6 @@ void scanTokens(FILE *input) {
             }
             lineNum++;
         }
-
-        // Print token list
-        /*
-        printf("\nToken List:\n");
-        for (int i = 0; i < tokenCount; i++) {
-            if (tokenList[i].type == identsym || tokenList[i].type == numbersym)
-                printf("%d %s ", tokenList[i].type, tokenList[i].lexeme);
-            else
-                printf("%d ", tokenList[i].type);
-        }*/
-        printf("\n");
     }
 }
 
@@ -462,8 +437,10 @@ void error(int error_num) {
     } else {
         printf("Unknown error\n");
     }
+    hasError = 1;
     exit(1);
 }
+
 void emit(int op, int L, int M) {
     if (cx >= CODE_SIZE) {
         //error("Program too long");
@@ -489,18 +466,21 @@ int find_symbol(char* name) {
 void program() {
     // First instruction should be JMP to skip variable allocation
     emit(JMP, 0, 13);
-    
+
     get_next_token();
     block();
     if (currentToken->type != periodsym) {
-        error(0); // program must end with period
+        printf(" program must end with period"); 
+        hasError = 1;
+        // program must end with period
+
     }
-    
+
     // Mark all symbols at program end
     for (int i = 0; i < sym_table_size; i++) {
         symbol_table[i].mark = 1;
     }
-    
+
     emit(SYS, 0, 3); // HALT instruction
 }
 
@@ -606,7 +586,8 @@ void statement() {
         int sym_idx = find_symbol(name);
         
         if (sym_idx == -1) {
-            error(6); // undeclared identifier
+            error(6);
+            printf(name); // undeclared identifier
         }
         if (symbol_table[sym_idx].kind != 2) {
             error(7); // only variables can be assigned to
@@ -740,46 +721,52 @@ void condition() {
     }
 }
 
+
 void expression() {
-    if (currentToken->type == plussym || currentToken->type == minussym) {
-        int addop = currentToken->type;
+    if (currentToken->type == minussym) {
+        // Handle unary minus case
         get_next_token();
         term();
-        
-        if (addop == minussym) {
-            emit(OPR, 0, 1); // NEG
+        emit(OPR, 0, 12);  // NEG operation (12)
+
+        // Handle subsequent additive terms
+        while (currentToken->type == plussym || currentToken->type == minussym) {
+            if (currentToken->type == plussym) {
+                get_next_token();
+                term();
+                emit(OPR, 0, 1);  // ADD operation (1)
+            } else {
+                get_next_token();
+                term();
+                emit(OPR, 0, 2);  // SUB operation (2)
+            }
         }
     }
     else {
-        term();
-    }
-    
-    while (currentToken->type == plussym || currentToken->type == minussym) {
-        int addop = currentToken->type;
-        get_next_token();
-        term();
-        
-        if (addop == plussym) {
-            emit(OPR, 0, 2); // ADD
+        if (currentToken->type == plussym) {
+            get_next_token();
         }
-        else {
-            emit(OPR, 0, 3); // SUB
-        }
+        term();
     }
 }
 
 void term() {
     factor();
-    while (currentToken->type == multsym || currentToken->type == slashsym) {
-        int mulop = currentToken->type;
-        get_next_token();
-        factor();
-        
-        if (mulop == multsym) {
-            emit(OPR, 0, 4); // MUL
+    while (currentToken->type == multsym || currentToken->type == slashsym || currentToken->type == oddsym) {
+        if (currentToken->type == multsym) {
+            get_next_token();
+            factor();
+            emit(OPR, 0, 3);  // MUL operation (M=4)
         }
-        else {
-            emit(OPR, 0, 5); // DIV
+        else if (currentToken->type == slashsym) {
+            get_next_token();
+            factor();
+            emit(OPR, 0, 4);  // DIV operation (M=5)
+        }
+        else {  // oddsym
+            get_next_token();
+            factor();
+            emit(OPR, 0, 11);  // MOD operation (M=7)
         }
     }
 }
@@ -822,23 +809,22 @@ void factor() {
 
 void print_errors() {
     if (errorCount > 0) {
-        printf("\nErrors:\n");
+        printf("\nErrors: ");
         for (int i = 0; i < errorCount; i++) {
-            printf("Line %d, Column %d: %s\n", 
-                   errors[i].line, errors[i].column, errors[i].message);
+            printf("%s\n", errors[i].message);
         }
     }
 }
 
 int main(int argc, char *argv[]) {
-    
+    /*
     if (argc < 2) {
         printf("Usage: %s <input_file>\n", argv[0]);
         return 1;
-    }    
+    }   */ 
 
-    //char* InputFile = "input.txt";
-    char* InputFile = argv[1];
+    char* InputFile = "errorin1.txt";
+    //char* InputFile = argv[1];
     FILE *input = fopen(InputFile, "r");
     if (!input) {
         perror("Error opening file");
